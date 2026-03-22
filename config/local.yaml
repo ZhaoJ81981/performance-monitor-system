@@ -98,6 +98,47 @@ prediction:
     save_to_influxdb: true
     generate_reports: true
     report_output_dir: "./reports/peak_predictions"
+  
+  # Advanced prediction with ensemble methods (NEW! v1.4)
+  advanced:
+    # Z-Score parameters
+    zscore_threshold: 2.5
+    
+    # IQR parameters  
+    iqr_multiplier: 1.5
+    
+    # Moving average parameters
+    ma_window: 7          # 7-hour rolling window
+    ma_std_multiplier: 2.0
+    
+    # EWMA parameters
+    ewma_alpha: 0.3       # Smoothing factor (0-1)
+    
+    # Ensemble weights (must sum to 1.0)
+    ensemble_weights:
+      zscore: 0.25
+      iqr: 0.20
+      ma: 0.25
+      ewma: 0.20
+      pattern: 0.10
+    
+    # Metrics to monitor
+    metrics_to_monitor:
+      - "cpu_usage"
+      - "memory_usage"
+      - "disk_usage"
+      - "network_rx"
+      - "network_tx"
+    
+    # Risk thresholds
+    risk_thresholds:
+      warning: 0.5
+      critical: 0.7
+    
+    # Output options
+    save_to_influxdb: true
+    generate_reports: true
+    report_output_dir: "./reports/advanced_predictions"
 
 monitoring:
   # Model performance monitoring

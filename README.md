@@ -121,19 +121,60 @@ prediction:
       critical: 0.7   # Configurable critical threshold
 ```
 
+### Advanced Anomaly Prediction (NEW! v1.4)
+Beyond simple max/min thresholds, uses **multiple statistical methods** for robust anomaly detection:
+
+**Methods:**
+1. **Z-Score Analysis**: Detect values deviating significantly from mean
+2. **IQR Method**: Identify outliers using interquartile range (Q1-Q3)
+3. **Moving Average + Std Deviation**: Dynamic thresholds based on recent trends
+4. **EWMA (Exponentially Weighted Moving Average)**: Adaptive trend tracking
+5. **Time-of-Day Patterns**: Learn recurring hourly patterns
+6. **Ensemble Method**: Combine all methods with configurable weights
+
+**Key Improvements:**
+- ✅ Dynamic thresholds (not static max/min)
+- ✅ Trend awareness (detects increasing/decreasing patterns)
+- ✅ Adaptive to workload changes
+- ✅ Robust against false positives
+- ✅ Configurable ensemble weights
+
+**Configuration (config/local.yaml):**
+```yaml
+prediction:
+  advanced:
+    # Z-Score parameters
+    zscore_threshold: 2.5
+    
+    # IQR parameters
+    iqr_multiplier: 1.5
+    
+    # Moving average parameters
+    ma_window: 7          # 7-hour rolling window
+    ma_std_multiplier: 2.0
+    
+    # EWMA parameters
+    ewma_alpha: 0.3       # Smoothing factor (0-1)
+    
+    # Ensemble weights (must sum to 1.0)
+    ensemble_weights:
+      zscore: 0.25
+      iqr: 0.20
+      ma: 0.25
+      ewma: 0.20
+      pattern: 0.10
+```
+
 **Usage:**
 ```bash
-# Run with default lookback days (30) from config
-python scripts/run_peak_predictor.py
-
-# Run with custom lookback days
-python scripts/run_peak_predictor.py --days 14
+# Run advanced predictor with ensemble methods
+python scripts/run_advanced_predictor.py --days 30
 
 # Output includes:
-# - Hourly risk predictions (0-1 scale)
-# - Critical/warning time slots (configurable thresholds)
-# - Metric-specific risk analysis
-# - Recommendations for monitoring
+# - Anomaly scores from each method
+# - Ensemble combined risk score
+# - Trend analysis (increasing/decreasing)
+# - Method-specific confidence metrics
 ```
 
 ## Configuration
