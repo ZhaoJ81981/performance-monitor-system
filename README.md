@@ -64,6 +64,9 @@ pip install -r requirements.txt
 python src/ml_pipeline/train.py --config config/local.yaml
 python src/ml_pipeline/predict.py --config config/local.yaml
 
+# Run peak-based anomaly predictor (NEW!)
+python scripts/run_peak_predictor.py --days 7 --save-to-influx
+
 # Access dashboards
 # Grafana: http://localhost:3000 (admin/admin)
 # InfluxDB UI: http://localhost:8086
@@ -85,6 +88,34 @@ python src/ml_pipeline/predict.py --config config/local.yaml
 - **SMART Attribute Analysis**: Using historical SMART data
 - **Survival Analysis**: Predict time‑to‑failure
 - **Gradient Boosting**: Feature importance analysis
+
+### Peak-Based Anomaly Prediction (NEW!)
+- **Historical Peak Analysis**: Uses max/min values from recent days as baseline
+- **Time-Slot Risk Scoring**: Predicts anomaly likelihood for each hour of the day
+- **Multi-Metric Correlation**: Considers CPU, memory, disk, and network patterns
+- **Pattern Recognition**: Identifies recurring high-risk time periods
+
+**Algorithm:**
+1. Collect metrics for last 'a' days (configurable)
+2. Calculate daily max/min peaks for each metric
+3. Establish baseline ranges from historical peaks
+4. Predict anomaly likelihood for today's time slots based on:
+   - Distance from historical peaks
+   - Time-of-day patterns
+   - Rate of change
+   - Multi-metric correlation
+
+**Usage:**
+```bash
+# Run peak-based predictor with 7-day lookback
+python scripts/run_peak_predictor.py --days 7
+
+# Output includes:
+# - Hourly risk predictions (0-1 scale)
+# - Critical/warning time slots
+# - Metric-specific risk analysis
+# - Recommendations for monitoring
+```
 
 ## Configuration
 
