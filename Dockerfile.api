@@ -1,0 +1,80 @@
+# Performance Monitor System - API Dockerfile
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Install specific versions for production
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    gunicorn==21.2.0 \
+    influxdb-client==1.38.0
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/models /app/config
+
+# Create non-root user
+RUN useradd -m -u 1001 apiuser && \
+    chown -R apiuser:apiuser /app
+USER apiuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Default command (can be overridden)
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "4", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "--timeout", "120", \
+     "src.api.main:app"]
+
+# Expose API port
+EXPOSE 8000
+
+# Labels
+LABEL maintainer="Performance Monitor System Team"
+LABEL version="1.0.0"
+LABEL description="API Server for Performance Monitor System"
+
+# Build arguments
+ARG BUILD_DATE
+ARG VCS_REF
+LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.vcs-url="https://github.com/ZhaoJ81981/performance-monitor-system"
+
+# Security best practices
+# Run as non-root user (already set)
+# Don't run as PID 1 (gunicorn handles this)
+# Use minimal base image
+# Clean apt cache in same RUN layer
+# Use specific versions for dependencies
+# Use HEALTHCHECK
+# Use multi-stage builds if needed (not implemented here for simplicity)

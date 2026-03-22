@@ -1,0 +1,281 @@
+# Grafana datasource configuration for Performance Monitor System
+apiVersion: 1
+
+datasources:
+  # InfluxDB datasource for metrics
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    database: metrics
+    orgId: 1
+    user: admin
+    secureJsonData:
+      token: my-super-secret-token
+    jsonData:
+      httpMode: POST
+      organization: pms
+      defaultBucket: metrics
+      tlsSkipVerify: true
+      version: Flux
+    editable: true
+    isDefault: true
+
+  # Prometheus datasource (optional)
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: false
+    editable: true
+    jsonData:
+      timeInterval: 15s
+      queryTimeout: 60s
+      httpMethod: POST
+      disableMetricsLookup: false
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  # Loki datasource for logs (optional)
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: "traceID=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+
+  # Tempo datasource for traces (optional)
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    isDefault: false
+    editable: true
+    jsonData:
+      httpMethod: GET
+      tracesToLogs:
+        datasourceUid: loki
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          - container
+          - pod
+        mappedTags:
+          - key: service
+            value: service.name
+      serviceMap:
+        datasourceUid: prometheus
+
+  # PostgreSQL datasource for metadata (optional)
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: pms_metadata
+    user: postgres
+    secureJsonData:
+      password: postgres
+    editable: true
+    jsonData:
+      postgresVersion: 1500
+      sslmode: disable
+      timescaledb: false
+      tlsAuth: false
+      tlsAuthWithCACert: false
+      tlsConfigurationMethod: file-path
+      tlsSkipVerify: true
+
+  # Elasticsearch datasource for logs (alternative)
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    database: "[logs-]YYYY.MM.DD"
+    isDefault: false
+    editable: true
+    jsonData:
+      esVersion: "8.0.0"
+      timeField: "@timestamp"
+      interval: Daily
+      timeInterval: "1m"
+      logMessageField: "message"
+      logLevelField: "level"
+      maxConcurrentShardRequests: 5
+
+  # CloudWatch datasource for AWS metrics (optional)
+  - name: CloudWatch
+    type: cloudwatch
+    access: proxy
+    isDefault: false
+    editable: true
+    jsonData:
+      authType: keys
+      defaultRegion: us-east-1
+
+  # Alertmanager datasource
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    isDefault: false
+    editable: true
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: true
+
+  # Test data source
+  - name: TestData
+    type: testdata
+    access: proxy
+    isDefault: false
+    editable: true
+
+# Dashboard providers
+dashboardProviders:
+  dashboardproviders:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 10
+      allowUiUpdates: true
+      options:
+        path: /etc/grafana/provisioning/dashboards
+
+# Dashboard configurations
+dashboards:
+  default:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: 'file'
+      options:
+        path: /etc/grafana/provisioning/dashboards
+
+# Annotation configurations
+annotations:
+  - name: Annotations
+    type: dashboard
+    enable: true
+    iconColor: 'rgba(0, 211, 255, 1)'
+    builtIn: 1
+
+# Alerting configurations
+alerting:
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    basicAuth: false
+    isDefault: true
+    editable: true
+
+# Grafana configuration
+config:
+  # Server settings
+  server:
+    http_port: 3000
+    domain: localhost
+    root_url: http://localhost:3000
+    serve_from_sub_path: false
+
+  # Database settings
+  database:
+    type: sqlite3
+    path: /var/lib/grafana/grafana.db
+
+  # Security settings
+  security:
+    admin_user: admin
+    admin_password: admin
+    secret_key: performance-monitor-system-secret-key
+
+  # Log settings
+  log:
+    mode: console
+    level: info
+
+  # Auth settings
+  auth:
+    disable_login_form: false
+    disable_signout_menu: false
+    oauth_auto_login: false
+
+  # Users settings
+  users:
+    allow_sign_up: false
+    auto_assign_org: true
+    auto_assign_org_role: Viewer
+
+  # Analytics settings
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+
+  # Snapshots settings
+  snapshots:
+    external_enabled: false
+    snapshot_remove_expired: true
+
+  # Dashboards settings
+  dashboards:
+    versions_to_keep: 20
+    min_refresh_interval: 5s
+
+  # SMTP settings (for alerts)
+  smtp:
+    enabled: false
+    host: smtp.gmail.com:587
+    user: your-email@gmail.com
+    password: your-password
+    from_address: your-email@gmail.com
+    from_name: Grafana
+
+  # Alerting settings
+  alerting:
+    enabled: true
+    execute_alerts: true
+    error_or_timeout: alerting
+    nodata_or_nullvalues: no_data
+    concurrent_render_limit: 5
+
+  # Explore settings
+  explore:
+    enabled: true
+
+  # Unified alerting settings
+  unified_alerting:
+    enabled: true
+    execute_alerts: true
+    evaluation_timeout_seconds: 30
+    max_attempts: 3
+    min_interval_seconds: 10
+
+  # Feature toggles
+  feature_toggles:
+    enable: []
+    disable: []
+
+# Provisioning configuration
+provisioning:
+  datasources: 
+    - name: 'default'
+      type: file
+      updateIntervalSeconds: 10
+      options:
+        path: /etc/grafana/provisioning/datasources
+  dashboards:
+    - name: 'default'
+      type: file
+      updateIntervalSeconds: 10
+      options:
+        path: /etc/grafana/provisioning/dashboards
