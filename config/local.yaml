@@ -1,0 +1,194 @@
+# Performance Monitor System - ML Pipeline Configuration
+
+data:
+  influxdb_host: "http://localhost:8086"
+  influxdb_token: "my-super-secret-token"
+  influxdb_org: "pms"
+  database: "metrics"
+  retention_policy: "autogen"
+  
+  # Data fetching
+  default_host: "localhost"
+  lookback_hours: 24
+  sampling_interval: "1m"
+  
+  # Local storage
+  local_storage: "./data"
+  cache_enabled: true
+  cache_ttl: 3600  # seconds
+
+models:
+  storage_path: "./models"
+  
+  # LSTM configuration
+  lstm:
+    sequence_length: 60  # 1 hour of 1-minute intervals
+    batch_size: 32
+    epochs: 50
+    hidden_units: 128
+    dropout_rate: 0.2
+    learning_rate: 0.001
+    
+  # Prophet configuration
+  prophet:
+    yearly_seasonality: true
+    weekly_seasonality: true
+    daily_seasonality: true
+    seasonality_mode: "multiplicative"
+    changepoint_prior_scale: 0.05
+    seasonality_prior_scale: 10.0
+    
+  # Anomaly detection
+  anomaly:
+    contamination: 0.01  # Expected proportion of anomalies
+    threshold_percentile: 1.0  # Percentile for anomaly threshold
+    window_size: 60  # Sliding window size
+    
+  # Disk failure prediction
+  disk_failure:
+    smart_attributes:
+      - "temperature"
+      - "power_on_hours"
+      - "reallocated_sector_ct"
+      - "pending_sector_ct"
+      - "uncorrectable_errors"
+    failure_threshold: 0.8  # Probability threshold for failure alert
+
+training:
+  # Training schedule
+  retrain_interval: 86400  # seconds (24 hours)
+  incremental_training: true
+  incremental_window: 3600  # seconds (1 hour)
+  
+  # Cross-validation
+  cv_folds: 5
+  test_size: 0.2
+  random_seed: 42
+  
+  # Early stopping
+  early_stopping_patience: 10
+  early_stopping_delta: 0.001
+
+prediction:
+  # Real-time prediction
+  prediction_interval: 300  # seconds (5 minutes)
+  forecast_horizon: 1440  # minutes (24 hours)
+  
+  # Anomaly detection
+  anomaly_check_interval: 60  # seconds
+  alert_cooldown: 300  # seconds between alerts for same metric
+  
+  # Disk failure
+  disk_check_interval: 3600  # seconds (1 hour)
+  failure_prediction_horizon: 168  # hours (1 week)
+
+monitoring:
+  # Model performance monitoring
+  track_model_performance: true
+  performance_metrics:
+    - "mae"
+    - "mse"
+    - "rmse"
+    - "mape"
+    - "r2"
+    
+  # Drift detection
+  detect_concept_drift: true
+  drift_threshold: 0.1
+  drift_window: 1000
+  
+  # Model retraining triggers
+  retrain_on_drift: true
+  retrain_on_performance_drop: true
+  performance_drop_threshold: 0.05
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/ml_pipeline.log"
+  max_size_mb: 100
+  backup_count: 5
+  
+  # InfluxDB logging
+  log_to_influxdb: true
+  influxdb_measurement: "ml_pipeline_logs"
+
+api:
+  # REST API configuration
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  workers: 4
+  
+  # Authentication
+  auth_enabled: false
+  api_keys:
+    - "default-api-key"
+    
+  # Rate limiting
+  rate_limit_enabled: true
+  requests_per_minute: 60
+
+alerting:
+  # Alert channels
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    sender: "alerts@performance-monitor.example.com"
+    
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#alerts"
+    
+  webhook:
+    enabled: true
+    url: "http://localhost:9093/api/v1/alerts"
+    
+  # Alert severity levels
+  severity_levels:
+    info:
+      threshold: 0.7
+      color: "blue"
+    warning:
+      threshold: 0.8
+      color: "yellow"
+    critical:
+      threshold: 0.9
+      color: "red"
+      
+  # Alert aggregation
+  group_alerts: true
+  group_interval: 300  # seconds
+  max_alerts_per_group: 10
+
+storage:
+  # Model storage
+  model_format: "h5"  # or "pkl", "onnx"
+  compress_models: true
+  
+  # Cache storage
+  cache_backend: "disk"  # or "memory", "redis"
+  redis_host: "localhost"
+  redis_port: 6379
+  
+  # Data persistence
+  persist_predictions: true
+  prediction_retention_days: 30
+  anomaly_retention_days: 90
+
+scaling:
+  # Distributed training
+  distributed_enabled: false
+  celery_broker_url: "redis://localhost:6379/0"
+  celery_result_backend: "redis://localhost:6379/1"
+  
+  # Parallel processing
+  max_workers: 4
+  use_gpu: false
+  gpu_devices: [0]
+  
+  # Batch processing
+  batch_size: 1000
+  max_batch_delay: 10  # seconds

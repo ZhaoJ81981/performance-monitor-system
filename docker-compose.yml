@@ -1,0 +1,158 @@
+version: '3.8'
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: pms-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
+      - DOCKER_INFLUXDB_INIT_ORG=pms
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - ./config/influxdb.conf:/etc/influxdb2/influxdb.conf:ro
+    networks:
+      - pms-network
+    restart: unless-stopped
+
+  telegraf:
+    image: telegraf:1.28
+    container_name: pms-telegraf
+    depends_on:
+      - influxdb
+    ports:
+      - "8125:8125/udp"  # StatsD
+      - "8092:8092/udp"  # UDP listener
+      - "8094:8094"      # TCP listener
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=my-super-secret-token
+      - INFLUXDB_ORG=pms
+      - INFLUXDB_BUCKET=metrics
+    volumes:
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - pms-network
+    restart: unless-stopped
+    pid: host
+    privileged: true
+
+  grafana:
+    image: grafana/grafana:10.2
+    container_name: pms-grafana
+    depends_on:
+      - influxdb
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+    networks:
+      - pms-network
+    restart: unless-stopped
+
+  ml-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    container_name: pms-ml-pipeline
+    depends_on:
+      - influxdb
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=my-super-secret-token
+      - INFLUXDB_ORG=pms
+      - INFLUXDB_BUCKET=metrics
+      - PYTHONPATH=/app
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./data:/app/data
+    networks:
+      - pms-network
+    restart: unless-stopped
+    command: python src/ml_pipeline/train.py --config config/local.yaml
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: pms-api
+    depends_on:
+      - influxdb
+      - ml-pipeline
+    ports:
+      - "8000:8000"
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=my-super-secret-token
+      - INFLUXDB_ORG=pms
+      - INFLUXDB_BUCKET=metrics
+      - ML_MODEL_PATH=/app/models
+    volumes:
+      - ./src:/app/src
+      - ./models:/app/models
+    networks:
+      - pms-network
+    restart: unless-stopped
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pms-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - pms-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: pms-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - pms-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+volumes:
+  influxdb-data:
+    driver: local
+  grafana-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+
+networks:
+  pms-network:
+    driver: bridge
