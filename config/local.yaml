@@ -81,6 +81,23 @@ prediction:
   # Disk failure
   disk_check_interval: 3600  # seconds (1 hour)
   failure_prediction_horizon: 168  # hours (1 week)
+  
+  # Peak-based prediction (NEW!)
+  peak_based:
+    default_lookback_days: 30  # 'a' days - configurable variable, default 30
+    metrics_to_monitor:
+      - "cpu_usage"
+      - "memory_usage" 
+      - "disk_usage"
+      - "network_rx"
+      - "network_tx"
+    risk_thresholds:
+      warning: 0.5
+      critical: 0.7
+    hourly_prediction: true
+    save_to_influxdb: true
+    generate_reports: true
+    report_output_dir: "./reports/peak_predictions"
 
 monitoring:
   # Model performance monitoring

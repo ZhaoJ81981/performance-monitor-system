@@ -35,18 +35,24 @@ class PeakBasedPredictor:
        - Rate of change
     """
     
-    def __init__(self, config_path: str, lookback_days: int = 7):
+    def __init__(self, config_path: str, lookback_days: int = None):
         """
         Initialize predictor.
         
         Args:
             config_path: Path to configuration file
-            lookback_days: Number of days to look back for historical data (default: 7)
+            lookback_days: Number of days to look back for historical data.
+                          If None, uses default from config (default: 30)
         """
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
         
-        self.lookback_days = lookback_days
+        # Get lookback days from config or use provided value
+        if lookback_days is None:
+            self.lookback_days = self.config.get('prediction', {}).get('peak_based', {}).get('default_lookback_days', 30)
+        else:
+            self.lookback_days = lookback_days
+        
         self.time_slots = 24  # Predict for each hour of the day
         
         # InfluxDB client
@@ -58,8 +64,9 @@ class PeakBasedPredictor:
         self.query_api = self.influx_client.query_api()
         self.write_api = self.influx_client.write_api(write_options=SYNCHRONOUS)
         
-        # Metrics to monitor
-        self.metrics = ['cpu_usage', 'memory_usage', 'disk_usage', 'network_rx', 'network_tx']
+        # Metrics to monitor - get from config or use defaults
+        self.metrics = self.config.get('prediction', {}).get('peak_based', {}).get('metrics_to_monitor', 
+                       ['cpu_usage', 'memory_usage', 'disk_usage', 'network_rx', 'network_tx'])
         
         # Historical peak data storage
         self.historical_peaks = {
@@ -68,14 +75,14 @@ class PeakBasedPredictor:
             'hourly_patterns': {metric: np.zeros(24) for metric in self.metrics}
         }
         
-        # Anomaly thresholds (configurable)
-        self.thresholds = {
-            'cpu_usage': {'warning': 80.0, 'critical': 90.0},
-            'memory_usage': {'warning': 85.0, 'critical': 95.0},
-            'disk_usage': {'warning': 90.0, 'critical': 95.0},
-            'network_rx': {'warning': 80.0, 'critical': 90.0},
-            'network_tx': {'warning': 80.0, 'critical': 90.0}
-        }
+        # Anomaly thresholds - get risk thresholds from config
+        risk_config = self.config.get('prediction', {}).get('peak_based', {}).get('risk_thresholds', {})
+        self.warning_threshold = risk_config.get('warning', 0.5)
+        self.critical_threshold = risk_config.get('critical', 0.7)
+        
+        logger.info(f"PeakBasedPredictor initialized with {self.lookback_days} days lookback")
+        logger.info(f"Monitoring metrics: {self.metrics}")
+        logger.info(f"Risk thresholds - Warning: {self.warning_threshold}, Critical: {self.critical_threshold}")
         
         logger.info(f"PeakBasedPredictor initialized with {lookback_days} days lookback")
     
@@ -274,10 +281,10 @@ class PeakBasedPredictor:
                     else:
                         metric_risk = 0.0
                     
-                    # Determine risk level
-                    if metric_risk > 0.7:
+                    # Determine risk level using configurable thresholds
+                    if metric_risk > self.critical_threshold:
                         risk_level = 'critical'
-                    elif metric_risk > 0.5:
+                    elif metric_risk > self.warning_threshold:
                         risk_level = 'warning'
                     else:
                         risk_level = 'normal'
@@ -295,9 +302,10 @@ class PeakBasedPredictor:
             # Calculate overall risk
             overall_risk = total_risk / len(self.metrics) if self.metrics else 0
             
-            if overall_risk > 0.7:
+            # Determine overall risk level using configurable thresholds
+            if overall_risk > self.critical_threshold:
                 overall_level = 'critical'
-            elif overall_risk > 0.5:
+            elif overall_risk > self.warning_threshold:
                 overall_level = 'warning'
             else:
                 overall_level = 'normal'
@@ -406,10 +414,10 @@ class PeakBasedPredictor:
         report_lines.append(f"  Warning risk hours: {len(warning_hours)}")
         report_lines.append("")
         
-        # High-risk time slots
-        high_risk = predictions_df[predictions_df['overall_risk_score'] >= 0.5]
+        # High-risk time slots (using warning threshold)
+        high_risk = predictions_df[predictions_df['overall_risk_score'] >= self.warning_threshold]
         if not high_risk.empty:
-            report_lines.append("HIGH-RISK TIME SLOTS (risk ≥ 0.5):")
+            report_lines.append(f"HIGH-RISK TIME SLOTS (risk ≥ {self.warning_threshold}):")
             for _, row in high_risk.iterrows():
                 hour_str = f"{row['hour']:02d}:00"
                 report_lines.append(f"  {hour_str}: {row['overall_risk_level'].upper()} "

@@ -96,7 +96,7 @@ python scripts/run_peak_predictor.py --days 7 --save-to-influx
 - **Pattern Recognition**: Identifies recurring high-risk time periods
 
 **Algorithm:**
-1. Collect metrics for last 'a' days (configurable)
+1. Collect metrics for last 'a' days (configurable, default: 30)
 2. Calculate daily max/min peaks for each metric
 3. Establish baseline ranges from historical peaks
 4. Predict anomaly likelihood for today's time slots based on:
@@ -105,14 +105,33 @@ python scripts/run_peak_predictor.py --days 7 --save-to-influx
    - Rate of change
    - Multi-metric correlation
 
+**Configuration (config/local.yaml):**
+```yaml
+prediction:
+  peak_based:
+    default_lookback_days: 30  # 'a' days - configurable variable
+    metrics_to_monitor:
+      - "cpu_usage"
+      - "memory_usage" 
+      - "disk_usage"
+      - "network_rx"
+      - "network_tx"
+    risk_thresholds:
+      warning: 0.5    # Configurable warning threshold
+      critical: 0.7   # Configurable critical threshold
+```
+
 **Usage:**
 ```bash
-# Run peak-based predictor with 7-day lookback
-python scripts/run_peak_predictor.py --days 7
+# Run with default lookback days (30) from config
+python scripts/run_peak_predictor.py
+
+# Run with custom lookback days
+python scripts/run_peak_predictor.py --days 14
 
 # Output includes:
 # - Hourly risk predictions (0-1 scale)
-# - Critical/warning time slots
+# - Critical/warning time slots (configurable thresholds)
 # - Metric-specific risk analysis
 # - Recommendations for monitoring
 ```

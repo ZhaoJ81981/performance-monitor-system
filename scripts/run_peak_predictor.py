@@ -21,16 +21,25 @@ logger = logging.getLogger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(description='Run peak-based anomaly predictor')
-    parser.add_argument('--config', default='config/config.yaml', 
+    parser.add_argument('--config', default='config/local.yaml', 
                        help='Path to configuration file')
-    parser.add_argument('--days', type=int, default=7,
-                       help='Number of days to look back for historical data')
+    parser.add_argument('--days', type=int, default=None,
+                       help='Number of days to look back for historical data. '
+                            'If not provided, uses default from config (default: 30)')
     parser.add_argument('--output-dir', default='reports',
                        help='Directory to save report files')
     parser.add_argument('--save-to-influx', action='store_true', default=True,
                        help='Save predictions to InfluxDB')
     
     args = parser.parse_args()
+    
+    # Load config to get default days if not provided
+    if args.days is None:
+        import yaml
+        with open(args.config, 'r') as f:
+            config = yaml.safe_load(f)
+        args.days = config.get('prediction', {}).get('peak_based', {}).get('default_lookback_days', 30)
+        logger.info(f"Using default lookback days from config: {args.days}")
     
     logger.info(f"Starting peak-based predictor with {args.days} days lookback")
     
