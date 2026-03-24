@@ -1,0 +1,133 @@
+# OpenClaw Test Configuration
+# Enhanced testing framework configuration
+
+test_suite:
+  name: "OpenClaw Comprehensive Test Suite"
+  version: "1.0.0"
+  description: "Comprehensive testing framework for OpenClaw projects"
+
+# Test categories
+categories:
+  cron_jobs:
+    enabled: true
+    max_jobs_to_test: 5
+    timeout_seconds: 30
+    
+  channels:
+    enabled: true
+    timeout_seconds: 30
+    
+  skills:
+    enabled: true
+    max_skills_to_list: 10
+    check_documentation: true
+    
+  wechat_integration:
+    enabled: true
+    check_plugin: true
+    check_skills: true
+    
+  performance:
+    enabled: true
+    commands_to_benchmark:
+      - ["openclaw", "--version"]
+      - ["openclaw", "cron", "list", "--json"]
+      - ["openclaw", "channels", "list", "--json"]
+      - ["openclaw", "gateway", "status"]
+    timeout_per_command: 30
+
+# Reporting
+reporting:
+  output_directory: "test_reports"
+  generate_json: true
+  generate_markdown: true
+  include_timestamp: true
+  
+# Notifications (future feature)
+notifications:
+  email:
+    enabled: false
+    recipients: []
+  slack:
+    enabled: false
+    webhook_url: ""
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+
+# Schedule (for automated testing)
+schedule:
+  enabled: false
+  frequency: "daily"  # daily, weekly, hourly
+  time: "02:00"  # Run at 2 AM
+  timezone: "Asia/Tokyo"
+
+# Thresholds for performance alerts
+thresholds:
+  command_response_time: 5.0  # seconds
+  cron_job_failure_rate: 0.2  # 20%
+  channel_connectivity: 0.8   # 80% must be connected
+
+# Integration tests
+integrations:
+  github:
+    enabled: true
+    repository: "your-username/your-repo"
+    branch: "main"
+    
+  docker:
+    enabled: false
+    container_name: "openclaw-test"
+    
+  database:
+    enabled: false
+    type: "sqlite"
+    path: "test.db"
+
+# Skill-specific tests
+skill_tests:
+  wechat_article_extractor:
+    enabled: true
+    test_urls:
+      - "https://mp.weixin.qq.com/s/example1"
+      - "https://mp.weixin.qq.com/s/example2"
+      
+  wechat_article_publisher:
+    enabled: false  # Requires API key
+    require_api_key: true
+    test_files:
+      - "test_article.md"
+      - "test_article.html"
+      
+  social_media_content:
+    enabled: true
+    test_platforms:
+      - "tiktok"
+      - "instagram"
+      - "youtube"
+
+# Security tests
+security:
+  enabled: true
+  checks:
+    - "api_key_exposure"
+    - "sensitive_data"
+    - "permission_validation"
+    - "rate_limiting"
+
+# Code quality
+code_quality:
+  enabled: true
+  tools:
+    - "pylint"
+    - "black"
+    - "mypy"
+  min_score: 8.0
+
+# Environment configuration
+environment:
+  openclaw_path: "/Users/matrixx/.nvm/versions/node/v22.22.0/bin/openclaw"
+  workspace_path: "/Users/matrixx/.openclaw/workspace"
+  skills_path: "/Users/matrixx/.agents/skills"
+  extensions_path: "/Users/matrixx/.openclaw/extensions"
