@@ -9,10 +9,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=influx_admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=admin1231981abc@D
+      - DOCKER_INFLUXDB_INIT_PASSWORD=🔐Sec@admimOhVn123!2024#
       - DOCKER_INFLUXDB_INIT_ORG=pms
       - DOCKER_INFLUXDB_INIT_BUCKET=metrics
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=_XssoQp_a7qeinuqQL9pjJ9YavtVNlBKiqrGHBrhbFc=
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=gfecOjNAnjaFBsljz4KuBCzGH2sZ6Gm7bIEqT41vXWc=
     volumes:
       - influxdb-data:/var/lib/influxdb2
       - ./config/influxdb.conf:/etc/influxdb2/influxdb.conf:ro
@@ -31,7 +31,7 @@ services:
       - "8094:8094"      # TCP listener
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=_XssoQp_a7qeinuqQL9pjJ9YavtVNlBKiqrGHBrhbFc=
+      - INFLUXDB_TOKEN=wBC0pdu1UlAP1sGB4GT_NfULwiN1MJGNboKqmRr0oPI=
       - INFLUXDB_ORG=pms
       - INFLUXDB_BUCKET=metrics
     volumes:
@@ -41,9 +41,6 @@ services:
     networks:
       - pms-network
     restart: unless-stopped
-    pid: host
-    privileged: true
-
   grafana:
     image: grafana/grafana:10.2
     container_name: pms-grafana
@@ -52,8 +49,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin1231981abc@D
+      - GF_SECURITY_ADMIN_USER=grafana_admin
+      - GF_SECURITY_ADMIN_PASSWORD=EQdWa@5b4&M%ASnJim@H%o78
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     volumes:
       - grafana-data:/var/lib/grafana
@@ -72,7 +69,7 @@ services:
       - influxdb
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=_XssoQp_a7qeinuqQL9pjJ9YavtVNlBKiqrGHBrhbFc=
+      - INFLUXDB_TOKEN=wBC0pdu1UlAP1sGB4GT_NfULwiN1MJGNboKqmRr0oPI=
       - INFLUXDB_ORG=pms
       - INFLUXDB_BUCKET=metrics
       - PYTHONPATH=/app
@@ -98,7 +95,7 @@ services:
       - "8000:8000"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=_XssoQp_a7qeinuqQL9pjJ9YavtVNlBKiqrGHBrhbFc=
+      - INFLUXDB_TOKEN=wBC0pdu1UlAP1sGB4GT_NfULwiN1MJGNboKqmRr0oPI=
       - INFLUXDB_ORG=pms
       - INFLUXDB_BUCKET=metrics
       - ML_MODEL_PATH=/app/models

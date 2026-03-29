@@ -1,0 +1,146 @@
+version: '3.8'
+
+# 安全版本的docker-compose配置
+# 使用环境变量管理敏感信息，不要硬编码
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: pms-influxdb
+    ports:
+      - "127.0.0.1:8086:8086"  # 只绑定到本地接口
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USER:-influx_admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-}  # 必须通过环境变量设置
+      - DOCKER_INFLUXDB_INIT_ORG=pms
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN:-}  # 必须通过环境变量设置
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - ./config/influxdb.conf:/etc/influxdb2/influxdb.conf:ro
+    networks:
+      - pms-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  telegraf:
+    image: telegraf:1.28
+    container_name: pms-telegraf
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8125:8125/udp"  # StatsD - 只绑定到本地
+      - "127.0.0.1:8092:8092/udp"  # UDP listener - 只绑定到本地
+      - "127.0.0.1:8094:8094"      # TCP listener - 只绑定到本地
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:-}  # 使用环境变量
+      - INFLUXDB_ORG=pms
+      - INFLUXDB_BUCKET=metrics
+    volumes:
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      # 最小化主机挂载
+      - ./hostfs/proc:/hostfs/proc:ro
+      - ./hostfs/sys:/hostfs/sys:ro
+      - ./hostfs/run:/hostfs/run:ro
+      # 移除Docker socket挂载，使用API替代
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - pms-network
+    restart: unless-stopped
+    # 移除危险权限
+    # pid: host  # 移除
+    # privileged: true  # 移除
+    cap_add:
+      - SYS_PTRACE  # 仅添加必要权限
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "telegraf", "--test", "--config", "/etc/telegraf/telegraf.conf"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:10.2
+    container_name: pms-grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"  # 只绑定到本地接口
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-grafana_admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-}  # 必须通过环境变量设置
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SECURITY_DISABLE_INITIAL_ADMIN_PASSWORD_CHANGE=false
+      - GF_SECURITY_ALLOW_EMBEDDING=false
+      - GF_SECURITY_COOKIE_SECURE=true
+      - GF_SECURITY_COOKIE_SAMESITE=lax
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./config/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./dashboards:/etc/grafana/dashboards:ro
+    networks:
+      - pms-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API服务（如果需要）
+  api:
+    build: ./api
+    container_name: pms-api
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"  # 只绑定到本地接口
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_ADMIN_TOKEN:-}
+      - INFLUXDB_ORG=pms
+      - INFLUXDB_BUCKET=metrics
+      - API_AUTH_ENABLED=true
+      - API_KEYS=${API_KEYS:-}  # 必须通过环境变量设置，逗号分隔
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./api:/app
+    networks:
+      - pms-network
+    restart: unless-stopped
+    # 生产环境移除--reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  pms-network:
+    driver: bridge
+    internal: false  # 允许外部访问，但通过端口绑定控制
+
+volumes:
+  influxdb-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# 环境变量说明文件
+# 创建 .env 文件并设置以下变量：
+# INFLUXDB_PASSWORD=强密码（至少16字符，包含大小写字母、数字、特殊字符）
+# INFLUXDB_ADMIN_TOKEN=随机长token（使用 openssl rand -base64 32 生成）
+# GRAFANA_PASSWORD=强密码（至少16字符）
+# API_KEYS=随机API密钥，多个用逗号分隔

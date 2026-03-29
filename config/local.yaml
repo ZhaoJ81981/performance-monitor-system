@@ -78,6 +78,59 @@ prediction:
   anomaly_check_interval: 60  # seconds
   alert_cooldown: 300  # seconds between alerts for same metric
   
+  # Peak-based anomaly prediction
+  peak_based:
+    default_lookback_days: 30
+    metrics_to_monitor:
+      - "cpu_usage"
+      - "memory_usage"
+      - "disk_usage"
+      - "network_rx"
+      - "network_tx"
+    risk_thresholds:
+      warning: 0.5
+      critical: 0.7
+  
+  # Advanced ensemble prediction (v2)
+  advanced:
+    # Z-Score parameters
+    zscore_threshold: 2.5
+    
+    # IQR parameters
+    iqr_multiplier: 1.5
+    
+    # Moving average parameters
+    ma_window: 7
+    ma_std_multiplier: 2.0
+    
+    # EWMA parameters
+    ewma_alpha: 0.3
+    
+    # Ensemble weights (must sum to 1.0)
+    ensemble_weights:
+      zscore: 0.25
+      iqr: 0.20
+      ma: 0.25
+      ewma: 0.20
+      pattern: 0.10
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  workers: 2
+  
+  # Rate limiting
+  rate_limit:
+    requests_per_minute: 120
+    burst_size: 20
+  
+  # CORS
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+  
   # Disk failure
   disk_check_interval: 3600  # seconds (1 hour)
   failure_prediction_horizon: 168  # hours (1 week)

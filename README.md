@@ -311,8 +311,40 @@ mypy src/
 - **Training time**: < 5 minutes per model (hourly retraining)
 - **Prediction latency**: < 50ms per host
 
+## API v2 Features (NEW!)
+
+Version 2.0 of the API includes significant improvements:
+
+### Rate Limiting
+- Token bucket algorithm with 120 req/min per client
+- Burst allowance up to 20 requests
+- Automatic 429 responses with Retry-After header
+
+### Caching Layer
+- In-memory TTL cache for metrics (30s), predictions (5min), alerts (1min)
+- Configurable cache invalidation
+- Cache hit/miss statistics via health endpoint
+
+### Enhanced Health Checks
+- `/health` - Comprehensive status with cache stats, rate limiter, model status
+- `/health/live` - Kubernetes liveness probe
+- `/health/ready` - Kubernetes readiness probe
+
+### Better Error Handling
+- Global exception handler with structured responses
+- Input validation with Pydantic
+- Detailed error messages in debug mode
+
+### Admin Endpoints
+- `POST /api/v2/admin/cache/clear` - Clear cache
+- `POST /api/v2/admin/models/reload` - Hot-reload ML models
+
 ## Roadmap
 
+- [x] Rate limiting middleware
+- [x] In-memory caching layer
+- [x] Enhanced health checks
+- [x] Better error handling
 - [ ] Real‑time streaming with Apache Kafka
 - [ ] GPU monitoring and prediction
 - [ ] Container‑level metrics (Docker, Kubernetes)
